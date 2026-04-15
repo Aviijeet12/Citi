@@ -1,0 +1,439 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String   @unique
+  displayName       String   @map("display_name")
+  passwordHash      String   @map("password_hash")
+  passwordSalt      String   @map("password_salt")
+  status            String   @default("active")
+  role              String   @default("USER")
+  isSystemCritical  Boolean  @default(false) @map("is_system_critical")
+  createdAt         DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt         DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+  employeeCode      String?  @unique @map("employee_code")
+  firstName         String?  @map("first_name")
+  lastName          String?  @map("last_name")
+  department        String?
+  jobTitle          String?  @map("job_title")
+  location          String?
+  hireDate          DateTime? @db.Date @map("hire_date")
+  managerUserId     String?  @db.Uuid @map("manager_user_id")
+  careerLevel       String?  @map("career_level")
+  isHighPotential   Boolean  @default(false) @map("is_high_potential")
+  isPromotionReady  Boolean  @default(false) @map("is_promotion_ready")
+  attritionRisk     String?  @map("attrition_risk")
+  skillsSummary     String?  @map("skills_summary")
+  bio               String?
+
+  manager                          User?                 @relation("UserManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  managedUsers                     User[]                @relation("UserManager")
+  roleAssignments                  UserRole[]            @relation("UserRolesUser")
+  teamLeadFor                      Team[]                @relation("TeamLeader")
+  teamsCreated                     Team[]                @relation("TeamCreatedBy")
+  teamsUpdated                     Team[]                @relation("TeamUpdatedBy")
+  teamMemberships                  TeamMember[]          @relation("TeamMemberUser")
+  achievementsOwned                Achievement[]         @relation("AchievementOwner")
+  achievementsCreated              Achievement[]         @relation("AchievementCreatedBy")
+  achievementsUpdated              Achievement[]         @relation("AchievementUpdatedBy")
+  metadataValuesCreated            MetadataValue[]       @relation("MetadataValueCreatedBy")
+  metadataValuesUpdated            MetadataValue[]       @relation("MetadataValueUpdatedBy")
+  refreshTokens                    RefreshToken[]        @relation("RefreshTokenUser")
+  auditLogs                        AuditLog[]            @relation("AuditActor")
+  requestedAsyncJobs               AsyncJob[]            @relation("AsyncJobRequestedBy")
+  competenciesCreated              Competency[]          @relation("CompetencyCreatedBy")
+  competenciesUpdated              Competency[]          @relation("CompetencyUpdatedBy")
+  employeeCompetencies             EmployeeCompetency[]  @relation("EmployeeCompetencyUser")
+  employeeCompetenciesCreated      EmployeeCompetency[]  @relation("EmployeeCompetencyCreatedBy")
+  employeeCompetenciesUpdated      EmployeeCompetency[]  @relation("EmployeeCompetencyUpdatedBy")
+  performanceReviewsAsEmployee     PerformanceReview[]   @relation("PerformanceReviewEmployee")
+  performanceReviewsAsReviewer     PerformanceReview[]   @relation("PerformanceReviewReviewer")
+  performanceReviewsCreated        PerformanceReview[]   @relation("PerformanceReviewCreatedBy")
+  performanceReviewsUpdated        PerformanceReview[]   @relation("PerformanceReviewUpdatedBy")
+  developmentPlansAsEmployee       DevelopmentPlan[]     @relation("DevelopmentPlanEmployee")
+  developmentPlansAsOwner          DevelopmentPlan[]     @relation("DevelopmentPlanOwner")
+  developmentPlansCreated          DevelopmentPlan[]     @relation("DevelopmentPlanCreatedBy")
+  developmentPlansUpdated          DevelopmentPlan[]     @relation("DevelopmentPlanUpdatedBy")
+  trainingRecordsAsEmployee        TrainingRecord[]      @relation("TrainingRecordEmployee")
+  trainingRecordsCreated           TrainingRecord[]      @relation("TrainingRecordCreatedBy")
+  trainingRecordsUpdated           TrainingRecord[]      @relation("TrainingRecordUpdatedBy")
+  projectOutcomesAsOwner           ProjectOutcome[]      @relation("ProjectOutcomeOwner")
+  projectOutcomesCreated           ProjectOutcome[]      @relation("ProjectOutcomeCreatedBy")
+  projectOutcomesUpdated           ProjectOutcome[]      @relation("ProjectOutcomeUpdatedBy")
+  projectContributions             ProjectContributor[]  @relation("ProjectContributorUser")
+
+  @@map("users")
+}
+
+model Role {
+  code             String           @id
+  name             String
+  permissions      RolePermission[] @relation("RolePermissionRole")
+  userAssignments  UserRole[]       @relation("UserRolesRole")
+
+  @@map("roles")
+}
+
+model Permission {
+  code             String           @id
+  description      String
+  rolePermissions  RolePermission[] @relation("RolePermissionPermission")
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleCode       String @map("role_code")
+  permissionCode String @map("permission_code")
+
+  role       Role       @relation("RolePermissionRole", fields: [roleCode], references: [code], onDelete: Cascade)
+  permission Permission @relation("RolePermissionPermission", fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleCode, permissionCode])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId   String @db.Uuid @map("user_id")
+  roleCode String @map("role_code")
+
+  user User @relation("UserRolesUser", fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation("UserRolesRole", fields: [roleCode], references: [code], onDelete: Cascade)
+
+  @@id([userId, roleCode])
+  @@map("user_roles")
+}
+
+model Team {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique
+  description   String?
+  location      String?
+  leaderUserId  String?  @db.Uuid @map("leader_user_id")
+  orgLeaderName String?  @map("org_leader_name")
+  createdById   String?  @db.Uuid @map("created_by")
+  updatedById   String?  @db.Uuid @map("updated_by")
+  createdAt     DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  leader          User?            @relation("TeamLeader", fields: [leaderUserId], references: [id], onDelete: SetNull)
+  createdBy       User?            @relation("TeamCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy       User?            @relation("TeamUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  members         TeamMember[]     @relation("TeamMemberTeam")
+  achievements    Achievement[]    @relation("AchievementTeam")
+  projectOutcomes ProjectOutcome[] @relation("ProjectOutcomeTeam")
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId        String   @db.Uuid @map("team_id")
+  userId        String   @db.Uuid @map("user_id")
+  roleTitle     String?  @map("role_title")
+  location      String?
+  isDirectStaff Boolean  @default(true) @map("is_direct_staff")
+  isLeader      Boolean  @default(false) @map("is_leader")
+  createdAt     DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  team Team @relation("TeamMemberTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Achievement {
+  id               String   @id @default(uuid()) @db.Uuid
+  teamId           String   @db.Uuid @map("team_id")
+  ownerUserId      String?  @db.Uuid @map("owner_user_id")
+  title            String
+  description      String?
+  achievementMonth DateTime @db.Date @map("achievement_month")
+  createdById      String?  @db.Uuid @map("created_by")
+  updatedById      String?  @db.Uuid @map("updated_by")
+  createdAt        DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  team      Team  @relation("AchievementTeam", fields: [teamId], references: [id], onDelete: Cascade)
+  owner     User? @relation("AchievementOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy User? @relation("AchievementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("AchievementUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("achievements")
+}
+
+model MetadataDefinition {
+  id         String   @id @default(uuid()) @db.Uuid
+  entityType String   @map("entity_type")
+  keyName    String   @map("key_name")
+  label      String
+  dataType   String   @default("text") @map("data_type")
+  createdAt  DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  values MetadataValue[] @relation("MetadataValueDefinition")
+
+  @@unique([entityType, keyName])
+  @@map("metadata_definitions")
+}
+
+model MetadataValue {
+  id           String   @id @default(uuid()) @db.Uuid
+  definitionId String   @db.Uuid @map("definition_id")
+  entityType   String   @map("entity_type")
+  entityId     String   @db.Uuid @map("entity_id")
+  valueText    String?  @map("value_text")
+  createdById  String?  @db.Uuid @map("created_by")
+  updatedById  String?  @db.Uuid @map("updated_by")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  definition MetadataDefinition @relation("MetadataValueDefinition", fields: [definitionId], references: [id], onDelete: Cascade)
+  createdBy  User?              @relation("MetadataValueCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy  User?              @relation("MetadataValueUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([definitionId, entityId])
+  @@map("metadata_values")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @db.Timestamptz(6) @map("expires_at")
+  revokedAt DateTime? @db.Timestamptz(6) @map("revoked_at")
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  user User @relation("RefreshTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @db.Uuid @map("entity_id")
+  details     Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  actorUser User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model AsyncJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  jobType      String    @map("job_type")
+  status       String    @default("queued")
+  requestedById String?  @db.Uuid @map("requested_by")
+  input        Json?
+  result       Json?
+  errorMessage String?   @map("error_message")
+  startedAt    DateTime? @db.Timestamptz(6) @map("started_at")
+  finishedAt   DateTime? @db.Timestamptz(6) @map("finished_at")
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt    DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  requestedBy User?            @relation("AsyncJobRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  events      AsyncJobEvent[]  @relation("AsyncJobEventJob")
+
+  @@index([status, createdAt], map: "idx_async_jobs_status_created_at")
+  @@index([requestedById], map: "idx_async_jobs_requested_by")
+  @@map("async_jobs")
+}
+
+model AsyncJobEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @db.Uuid @map("job_id")
+  eventType String   @map("event_type")
+  payload   Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+
+  job AsyncJob @relation("AsyncJobEventJob", fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt], map: "idx_async_job_events_job_id_created_at")
+  @@map("async_job_events")
+}
+
+model Competency {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  category    String?
+  description String?
+  isCritical  Boolean  @default(false) @map("is_critical")
+  createdById String?  @db.Uuid @map("created_by")
+  updatedById String?  @db.Uuid @map("updated_by")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  createdBy             User?                 @relation("CompetencyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy             User?                 @relation("CompetencyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  employeeCompetencies  EmployeeCompetency[]  @relation("EmployeeCompetencySkill")
+  developmentPlanItems  DevelopmentPlanItem[] @relation("DevelopmentPlanItemCompetency")
+  trainingRecords       TrainingRecord[]      @relation("TrainingRecordCompetency")
+
+  @@map("competencies")
+}
+
+model EmployeeCompetency {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid @map("user_id")
+  competencyId   String   @db.Uuid @map("competency_id")
+  currentLevel   Int      @default(1) @map("current_level")
+  targetLevel    Int      @default(1) @map("target_level")
+  evidence       String?
+  lastAssessedAt DateTime? @db.Date @map("last_assessed_at")
+  createdById    String?  @db.Uuid @map("created_by")
+  updatedById    String?  @db.Uuid @map("updated_by")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt      DateTime @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  user       User       @relation("EmployeeCompetencyUser", fields: [userId], references: [id], onDelete: Cascade)
+  competency Competency @relation("EmployeeCompetencySkill", fields: [competencyId], references: [id], onDelete: Cascade)
+  createdBy  User?      @relation("EmployeeCompetencyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy  User?      @relation("EmployeeCompetencyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, competencyId])
+  @@map("employee_competencies")
+}
+
+model PerformanceReview {
+  id                    String    @id @default(uuid()) @db.Uuid
+  employeeUserId        String    @db.Uuid @map("employee_user_id")
+  reviewerUserId        String?   @db.Uuid @map("reviewer_user_id")
+  reviewPeriod          String    @map("review_period")
+  reviewDate            DateTime  @db.Date @map("review_date")
+  reviewType            String    @default("annual") @map("review_type")
+  status                String    @default("draft")
+  overallRating         Decimal   @db.Decimal(4, 2) @map("overall_rating")
+  strengths             String?
+  improvementAreas      String?   @map("improvement_areas")
+  managerFeedback       String?   @map("manager_feedback")
+  employeeFeedback      String?   @map("employee_feedback")
+  promotionRecommendation String? @map("promotion_recommendation")
+  createdById           String?   @db.Uuid @map("created_by")
+  updatedById           String?   @db.Uuid @map("updated_by")
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt             DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  employeeUser User  @relation("PerformanceReviewEmployee", fields: [employeeUserId], references: [id], onDelete: Cascade)
+  reviewerUser User? @relation("PerformanceReviewReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  createdBy    User? @relation("PerformanceReviewCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User? @relation("PerformanceReviewUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("performance_reviews")
+}
+
+model DevelopmentPlan {
+  id             String    @id @default(uuid()) @db.Uuid
+  employeeUserId String    @db.Uuid @map("employee_user_id")
+  ownerUserId    String?   @db.Uuid @map("owner_user_id")
+  title          String
+  targetRole     String?   @map("target_role")
+  status         String    @default("planned")
+  startDate      DateTime? @db.Date @map("start_date")
+  targetDate     DateTime? @db.Date @map("target_date")
+  progressPercent Int      @default(0) @map("progress_percent")
+  summary        String?
+  createdById    String?   @db.Uuid @map("created_by")
+  updatedById    String?   @db.Uuid @map("updated_by")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt      DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  employeeUser User                @relation("DevelopmentPlanEmployee", fields: [employeeUserId], references: [id], onDelete: Cascade)
+  ownerUser    User?               @relation("DevelopmentPlanOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User?               @relation("DevelopmentPlanCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?               @relation("DevelopmentPlanUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  items        DevelopmentPlanItem[] @relation("DevelopmentPlanItemPlan")
+
+  @@map("development_plans")
+}
+
+model DevelopmentPlanItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  planId         String    @db.Uuid @map("plan_id")
+  title          String
+  description    String?
+  competencyId   String?   @db.Uuid @map("competency_id")
+  status         String    @default("planned")
+  dueDate        DateTime? @db.Date @map("due_date")
+  completionDate DateTime? @db.Date @map("completion_date")
+  notes          String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt      DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  plan       DevelopmentPlan @relation("DevelopmentPlanItemPlan", fields: [planId], references: [id], onDelete: Cascade)
+  competency Competency?     @relation("DevelopmentPlanItemCompetency", fields: [competencyId], references: [id], onDelete: SetNull)
+
+  @@map("development_plan_items")
+}
+
+model TrainingRecord {
+  id               String    @id @default(uuid()) @db.Uuid
+  employeeUserId   String    @db.Uuid @map("employee_user_id")
+  competencyId     String?   @db.Uuid @map("competency_id")
+  title            String
+  provider         String?
+  status           String    @default("planned")
+  completionDate   DateTime? @db.Date @map("completion_date")
+  hours            Decimal?  @db.Decimal(6, 2)
+  score            Decimal?  @db.Decimal(6, 2)
+  certificationName String?  @map("certification_name")
+  notes            String?
+  createdById      String?   @db.Uuid @map("created_by")
+  updatedById      String?   @db.Uuid @map("updated_by")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt        DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  employeeUser User        @relation("TrainingRecordEmployee", fields: [employeeUserId], references: [id], onDelete: Cascade)
+  competency   Competency? @relation("TrainingRecordCompetency", fields: [competencyId], references: [id], onDelete: SetNull)
+  createdBy    User?       @relation("TrainingRecordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?       @relation("TrainingRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("training_records")
+}
+
+model ProjectOutcome {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  teamId        String?   @db.Uuid @map("team_id")
+  ownerUserId   String?   @db.Uuid @map("owner_user_id")
+  projectStatus String    @default("planned") @map("project_status")
+  outcomeScore  Decimal?  @db.Decimal(6, 2) @map("outcome_score")
+  startDate     DateTime? @db.Date @map("start_date")
+  endDate       DateTime? @db.Date @map("end_date")
+  summary       String?
+  createdById   String?   @db.Uuid @map("created_by")
+  updatedById   String?   @db.Uuid @map("updated_by")
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt     DateTime  @default(now()) @db.Timestamptz(6) @map("updated_at")
+
+  team         Team?               @relation("ProjectOutcomeTeam", fields: [teamId], references: [id], onDelete: SetNull)
+  ownerUser    User?               @relation("ProjectOutcomeOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy    User?               @relation("ProjectOutcomeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?               @relation("ProjectOutcomeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  contributors ProjectContributor[] @relation("ProjectContributorProject")
+
+  @@map("project_outcomes")
+}
+
+model ProjectContributor {
+  projectId      String  @db.Uuid @map("project_id")
+  userId         String  @db.Uuid @map("user_id")
+  responsibility String?
+
+  project ProjectOutcome @relation("ProjectContributorProject", fields: [projectId], references: [id], onDelete: Cascade)
+  user    User           @relation("ProjectContributorUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_contributors")
+}

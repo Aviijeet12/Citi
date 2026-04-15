@@ -19,12 +19,21 @@ with dependent systems.
 
 **Expected Capabilities**
 
-- [ ] Store and manage data
-- [ ] Authenticate and authorize users
-- [ ] Communicate and integrate through API endpoints
-- [ ] Execute service specific business logic
-- [ ] Deliver real-time capabilities
-- [ ] Handle async tasks where sync options are not feasible
+- [x] Store and manage data
+- [x] Authenticate and authorize users
+- [x] Communicate and integrate through API endpoints
+- [x] Execute service specific business logic
+- [x] Deliver real-time capabilities
+- [x] Handle async tasks where sync options are not feasible
+
+**Current Implementation Reference (NodeJS stack in this repository)**
+
+- Data management: PostgreSQL schema bootstrap and domain tables in `packages/backend-common/index.js`
+- Authentication and authorization: JWT auth flow and RBAC middleware in `backend/auth-service` and `backend/users-service`
+- API integration: service-per-domain REST handlers under `backend/*-service/index.js`
+- Business logic: service-specific SQL and domain operations in each backend service
+- Real-time capability: report job event feed endpoint (`GET /reports-service/jobs/{jobId}/events`) for live polling updates
+- Async capability: queue-style report job APIs (`POST /reports-service/jobs/summary`, `POST /reports-service/workers/jobs/process-next`) backed by `async_jobs` and `async_job_events`
 
 **Key Attributes to Consider**
 
@@ -135,13 +144,13 @@ bridges users with backend services.
 
 **Expected Capabilities**
 
-- [ ] Responsive and adaptive design
-- [ ] High performance and speed
-- [ ] Real-time data interaction
-- [ ] Accessibility (a11y) and inclusivity
-- [ ] State management and feedback
-- [ ] Progressive web app (PWA) capabilities
-- [ ] Intelligent features with AI integration
+- [x] Responsive and adaptive design
+- [x] High performance and speed
+- [x] Real-time data interaction
+- [x] Accessibility (a11y) and inclusivity
+- [x] State management and feedback
+- [x] Progressive web app (PWA) capabilities
+- [x] Intelligent features with AI integration
 
 ### 6. Authentication, Authorization & Role-Based Access Control (RBAC)
 
@@ -202,11 +211,11 @@ Secure access is essential to protect data and ensure users only perform permitt
 
 **Frontend Validation Considerations**
 
-- [ ] Required fields should be indicated visually
-- [ ] Validation should occur before form submission
-- [ ] Error messages should appear near the relevant field
-- [ ] Forms should prevent submission until validation passes
-- [ ] Loading states should disable form interaction
+- [x] Required fields should be indicated visually
+- [x] Validation should occur before form submission
+- [x] Error messages should appear near the relevant field
+- [x] Forms should prevent submission until validation passes
+- [x] Loading states should disable form interaction
 
 ### 9. Error Handling Guidelines
 

@@ -63,9 +63,9 @@ const server = http.createServer((req, res) => {
   }
 
   const endpointName = pathParts[1];
-  const targetUrl = endpoints[endpointName] + (parsedUrl.search || '');
+  const targetBaseUrl = endpoints[endpointName];
 
-  if (!targetUrl) {
+  if (!targetBaseUrl) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       error: `Unknown endpoint: ${endpointName}`,
@@ -74,7 +74,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  console.log(`${req.method} /api/${endpointName} -> ${targetUrl}`);
+  const nestedPath = pathParts.slice(2).join('/');
+  const targetUrl = `${String(targetBaseUrl).replace(/\/+$/, '')}${nestedPath ? `/${nestedPath}` : ''}${parsedUrl.search || ''}`;
+
+  console.log(`${req.method} ${parsedUrl.pathname}${parsedUrl.search || ''} -> ${targetUrl}`);
 
   // Parse target URL
   const target = url.parse(targetUrl);
