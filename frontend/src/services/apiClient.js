@@ -188,59 +188,91 @@ function getErrorMessage(payload, fallback) {
   return fallback;
 }
 
-async function bootstrapSession(forceRefresh = false) {
-  if (!forceRefresh && sessionCache?.accessToken) {
+async function bootstrapSession(forceRefresh = false, email = null, password = null) {
+  if (!forceRefresh && sessionCache?.accessToken && !email) {
     return sessionCache;
   }
 
-  if (bootstrapPromise) {
-    return bootstrapPromise;
+  if (!email) {
+    bootstrapPromise = (async () => {
+      const response = await fetch(buildServiceUrl("auth-service", "login"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: ENV_BOOTSTRAP_EMAIL,
+          password: ENV_BOOTSTRAP_PASSWORD,
+        }),
+      });
+
+      const payload = await parseResponsePayload(response);
+
+      if (!response.ok) {
+        throw new ApiError(
+          getErrorMessage(payload, "Unable to initialize session for backend requests"),
+          response.status,
+          payload?.details || null
+        );
+      }
+
+      if (!payload?.access_token) {
+        throw new ApiError("Backend login succeeded but did not return access token", 500, payload);
+      }
+
+      sessionCache = {
+        accessToken: payload.access_token,
+        refreshToken: payload.refresh_token || null,
+        user: payload.user || null,
+        tokenType: payload.token_type || "Bearer",
+        createdAt: new Date().toISOString(),
+      };
+
+      saveStoredSession(sessionCache);
+      return sessionCache;
+    })();
+
+    try {
+      return await bootstrapPromise;
+    } finally {
+      bootstrapPromise = null;
+    }
   }
 
-  bootstrapPromise = (async () => {
-    const response = await fetch(buildServiceUrl("auth-service", "login"), {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: ENV_BOOTSTRAP_EMAIL,
-        password: ENV_BOOTSTRAP_PASSWORD,
-      }),
-    });
+  // Handle explicit credentials (non-singleton)
+  const response = await fetch(buildServiceUrl("auth-service", "login"), {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
 
-    const payload = await parseResponsePayload(response);
+  const payload = await parseResponsePayload(response);
 
-    if (!response.ok) {
-      throw new ApiError(
-        getErrorMessage(payload, "Unable to initialize session for backend requests"),
-        response.status,
-        payload?.details || null
-      );
-    }
-
-    if (!payload?.access_token) {
-      throw new ApiError("Backend login succeeded but did not return access token", 500, payload);
-    }
-
-    sessionCache = {
-      accessToken: payload.access_token,
-      refreshToken: payload.refresh_token || null,
-      user: payload.user || null,
-      tokenType: payload.token_type || "Bearer",
-      createdAt: new Date().toISOString(),
-    };
-
-    saveStoredSession(sessionCache);
-    return sessionCache;
-  })();
-
-  try {
-    return await bootstrapPromise;
-  } finally {
-    bootstrapPromise = null;
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload, "Login failed"),
+      response.status,
+      payload?.details || null
+    );
   }
+
+  sessionCache = {
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token || null,
+    user: payload.user || null,
+    tokenType: payload.token_type || "Bearer",
+    createdAt: new Date().toISOString(),
+  };
+
+  saveStoredSession(sessionCache);
+  return sessionCache;
 }
 
 async function getAccessToken(forceRefresh = false) {
