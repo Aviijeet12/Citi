@@ -1,6 +1,6 @@
 const DEFAULT_API_URL = "http://localhost:3001";
-const DEFAULT_BOOTSTRAP_EMAIL = "admin@acme.local";
-const DEFAULT_BOOTSTRAP_PASSWORD = "Admin123!";
+const DEFAULT_BOOTSTRAP_EMAIL = "admin@citi.com";
+const DEFAULT_BOOTSTRAP_PASSWORD = "123456";
 const SESSION_STORAGE_KEY = "workshop.auth.session";
 
 const ENV_API_URL = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || DEFAULT_API_URL;

@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ToastProvider } from "./context/ToastContext";
+import { useAuth } from "./context/AuthContext";
 import AppLayout from "./components/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -90,12 +89,8 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <div className="animated-bg-grid" />
-          <AppRoutes />
-        </ToastProvider>
-      </AuthProvider>
+      <div className="animated-bg-grid" />
+      <AppRoutes />
     </BrowserRouter>
   );
 }
