@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tag, Plus, Search, Edit2, Trash2, X, Check, AlertCircle, Loader2, Database, Hash, FileText } from "lucide-react";
 import { useAuth, PERMISSIONS } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { metadataApi } from "../services/workshopApi";
 
 const INITIAL_DEFS = [
   { id:"md1", key:"team_size_limit", type:"integer", description:"Maximum number of members allowed in a team", required:true, defaultValue:"15", scope:"team" },
@@ -179,12 +180,38 @@ export default function MetadataPage() {
   const canDelete = hasPermission(PERMISSIONS.METADATA_DELETE);
 
   const [activeTab, setActiveTab] = useState("definitions");
-  const [defs, setDefs] = useState(INITIAL_DEFS);
-  const [values, setValues] = useState(INITIAL_VALUES);
+  const [defs, setDefs] = useState([]);
+  const [values, setValues] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null); // {type:"def"|"val", item:...}
   const [deleteTarget, setDeleteTarget] = useState(null);
   const showNotif = useToast();
+
+  const fetchMetadata = async () => {
+    try {
+      setLoading(true);
+      const [defsData, valsData] = await Promise.all([
+        metadataApi.listDefinitions(),
+        metadataApi.listValues()
+      ]);
+      
+      const defItems = defsData?.items || defsData || [];
+      const valItems = valsData?.items || valsData || [];
+      
+      setDefs(Array.isArray(defItems) && defItems.length > 0 ? defItems : INITIAL_DEFS);
+      setValues(Array.isArray(valItems) && valItems.length > 0 ? valItems : INITIAL_VALUES);
+    } catch (err) {
+      setDefs(INITIAL_DEFS);
+      setValues(INITIAL_VALUES);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMetadata();
+  }, []);
 
   const filteredDefs = useMemo(()=>defs.filter(d=>{
     const q=search.toLowerCase();
@@ -199,11 +226,13 @@ export default function MetadataPage() {
   const handleSaveDef = useCallback(data=>{
     setDefs(prev=>{const idx=prev.findIndex(d=>d.id===data.id);if(idx>=0){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
     setModal(null);showNotif("Definition saved");
+    fetchMetadata();
   },[showNotif]);
 
   const handleSaveVal = useCallback(data=>{
     setValues(prev=>{const idx=prev.findIndex(v=>v.id===data.id);if(idx>=0){const n=[...prev];n[idx]=data;return n;}return [...prev,data];});
     setModal(null);showNotif("Value saved");
+    fetchMetadata();
   },[showNotif]);
 
   const handleDelete = useCallback(()=>{

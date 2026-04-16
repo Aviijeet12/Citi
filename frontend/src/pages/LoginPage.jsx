@@ -1,8 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, Eye, EyeOff, Mail, Lock, AlertCircle, Loader2, Users, BarChart3, Settings, TrendingUp } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Building2, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  ArrowRight, 
+  Loader2,
+  ShieldCheck
+} from "lucide-react";
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -19,47 +28,45 @@ const GitHubIcon = () => (
   </svg>
 );
 
-const features = [
-  { icon: <Users size={16}/>, text: "Role-based access for Admin, Manager, Contributor & Viewer" },
-  { icon: <BarChart3 size={16}/>, text: "Real-time dashboards with live data insights" },
-  { icon: <TrendingUp size={16}/>, text: "Teams, achievements, and performance tracking" },
-  { icon: <Settings size={16}/>, text: "Full CRUD operations with validation & audit logs" },
-];
-
-export default function LoginPage() {
-  const { login, loginWithGoogle, loginWithGitHub } = useAuth();
-  const navigate = useNavigate();
-
+const LoginPage = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState("");
   const [error, setError] = useState("");
+  const { login, loginWithGoogle, loginWithGitHub } = useAuth();
+  const navigate = useNavigate();
 
-  const handleInput = useCallback((field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setError("");
-  }, []);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const handleSubmit = useCallback(async (e) => {
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleInput = (field) => (e) => {
+    setForm({ ...form, [field]: e.target.value });
+    if (error) setError("");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      setError("Please fill in all required fields.");
-      return;
-    }
     setLoading(true);
     setError("");
+
     try {
       await login(form.email, form.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Login failed. Please try again.");
-    } finally {
+      setError(err.message || "Invalid credentials. Please try again.");
       setLoading(false);
     }
-  }, [form, login, navigate]);
+  };
 
-  const handleSocialLogin = useCallback(async (provider) => {
+  const handleSocialLogin = async (provider) => {
     setSocialLoading(provider);
     setError("");
     try {
@@ -71,190 +78,310 @@ export default function LoginPage() {
     } finally {
       setSocialLoading("");
     }
-  }, [loginWithGoogle, loginWithGitHub, navigate]);
+  };
+
+  const isMobile = window.innerWidth < 1024;
+
+  const styles = {
+    layout: {
+      display: "flex",
+      height: "100vh",
+      width: "100vw",
+      backgroundColor: "#000000",
+      overflow: "hidden",
+      fontFamily: "'Inter', sans-serif"
+    },
+    leftPanel: {
+      flex: 1.2,
+      position: "relative",
+      display: isMobile ? "none" : "block",
+      overflow: "hidden",
+      borderRight: "1px solid rgba(255,255,255,0.05)"
+    },
+    image: {
+      position: "absolute",
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      filter: "contrast(1.2) brightness(0.8)"
+    },
+    gradientOverlay: {
+      position: "absolute",
+      inset: 0,
+      background: "linear-gradient(to right, transparent 0%, #000000 100%)",
+      zIndex: 1
+    },
+    rightPanel: {
+      flex: 1,
+      position: "relative",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: isMobile ? "20px" : "40px",
+      minWidth: "400px",
+      maxWidth: "700px",
+      backgroundColor: "#000000",
+      overflow: "hidden"
+    },
+    orb1: { position: "absolute", top: "10%", left: "20%", width: "40vh", height: "40vh", background: "#4f46e5", filter: "blur(100px)", opacity: 0.4, borderRadius: "50%", zIndex: 0 },
+    orb2: { position: "absolute", bottom: "10%", right: "10%", width: "50vh", height: "50vh", background: "#0ea5e9", filter: "blur(120px)", opacity: 0.3, borderRadius: "50%", zIndex: 0 },
+    
+    glassCardWrapper: {
+      width: "100%",
+      maxWidth: "420px",
+      position: "relative",
+      zIndex: 10,
+      cursor: "default"
+    },
+    glassCard: {
+      width: "100%",
+      padding: "40px 32px",
+      background: "rgba(10, 10, 10, 0.4)",
+      backdropFilter: "blur(40px)",
+      WebkitBackdropFilter: "blur(40px)",
+      borderRadius: "24px",
+      border: "1px solid rgba(255, 255, 255, 0.05)",
+      boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8)",
+      position: "relative",
+      overflow: "hidden"
+    },
+    input: {
+      width: "100%",
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: "12px",
+      padding: "14px 16px 14px 44px",
+      color: "#ffffff",
+      fontSize: "14px",
+      transition: "all 0.3s ease",
+      outline: "none"
+    },
+    icon: { position: "absolute", left: "14px", top: "15px", color: "#64748b", transition: "color 0.3s ease" },
+    btnPrimary: {
+      width: "100%",
+      padding: "14px",
+      background: "#ffffff",
+      color: "#000000",
+      border: "none",
+      borderRadius: "12px",
+      fontSize: "15px",
+      fontWeight: "700",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      transition: "transform 0.1s, background 0.3s",
+      marginTop: "16px"
+    },
+    socialBtn: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "10px",
+      padding: "12px",
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: "12px",
+      color: "#ffffff",
+      fontSize: "14px",
+      fontWeight: "600",
+      cursor: "pointer",
+      transition: "all 0.3s ease"
+    }
+  };
+
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.1 } }
+  };
 
   return (
-    <div className="auth-layout">
-      <div className="auth-bg-orbs">
-        <div className="auth-orb auth-orb-1" />
-        <div className="auth-orb auth-orb-2" />
-        <div className="auth-orb auth-orb-3" />
-      </div>
-
-      {/* Left branding panel */}
-      <div className="auth-left">
-        <motion.div
-          className="auth-left-content"
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="auth-brand-logo">
-            <ShieldCheck size={36} color="white" />
-          </div>
-          <h1 className="auth-left-title">WorkForce<br />Command Center</h1>
-          <p className="auth-left-desc">
-            An enterprise-grade platform for managing teams, achievements, 
-            competencies, and organizational performance — built for Citi.
-          </p>
-          <div className="auth-features">
-            {features.map((f, i) => (
-              <motion.div
-                key={i}
-                className="auth-feature-item"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
-              >
-                <div className="auth-feature-icon">{f.icon}</div>
-                <span>{f.text}</span>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Right form panel */}
-      <div className="auth-right">
-        <motion.div
-          className="auth-form-container"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="auth-form-header">
-            <h2>Welcome back</h2>
-            <p>Sign in to your account to continue</p>
-          </div>
-
-          {/* Social login */}
-          <div className="auth-form" style={{ marginBottom: 16 }}>
-            <div className="social-btn-row">
-              <button
-                className="social-btn"
-                onClick={() => handleSocialLogin("google")}
-                disabled={!!socialLoading || loading}
-                id="btn-google-login"
-              >
-                {socialLoading === "google" ? <Loader2 size={16} className="spin" style={{ animation: "spin 0.8s linear infinite" }}/> : <GoogleIcon />}
-                Google
-              </button>
-              <button
-                className="social-btn"
-                onClick={() => handleSocialLogin("github")}
-                disabled={!!socialLoading || loading}
-                id="btn-github-login"
-              >
-                {socialLoading === "github" ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }}/> : <GitHubIcon />}
-                GitHub
-              </button>
-            </div>
-
-            <div className="auth-divider">
-              <div className="auth-divider-line" />
-              <span>or sign in with email</span>
-              <div className="auth-divider-line" />
-            </div>
-
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  className="alert alert-error"
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <AlertCircle size={16} style={{ flexShrink: 0 }}/>
-                  <span>{error}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-email">
-                  Email address <span className="required">*</span>
-                </label>
-                <div style={{ position: "relative" }}>
-                  <Mail size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                  <input
-                    id="login-email"
-                    type="email"
-                    className="form-input"
-                    style={{ paddingLeft: 40 }}
-                    placeholder="admin@citi.com"
-                    value={form.email}
-                    onChange={handleInput("email")}
-                    autoComplete="email"
-                    required
-                  />
-                </div>
+    <div style={styles.layout}>
+      <div style={styles.leftPanel}>
+        <motion.img 
+           src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2000"
+           alt="Citi Hub AI" 
+           style={styles.image}
+           initial={{ scale: 1.05 }}
+           animate={{ scale: 1 }}
+           transition={{ duration: 1.5, ease: "easeOut" }}
+        />
+        <div style={styles.gradientOverlay} />
+        
+        <div style={{ position: "absolute", bottom: "8%", left: "8%", zIndex: 10 }}>
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <div style={{ padding: "10px", background: "#ffffff", borderRadius: "12px" }}>
+                <Building2 size={20} color="#000000" />
               </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-password">
-                  Password <span className="required">*</span>
-                </label>
-                <div style={{ position: "relative" }}>
-                  <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                  <input
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    className="form-input"
-                    style={{ paddingLeft: 40, paddingRight: 40 }}
-                    placeholder="123456"
-                    value={form.password}
-                    onChange={handleInput("password")}
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }}
-                    onClick={() => setShowPassword((v) => !v)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                id="btn-login-submit"
-                type="submit"
-                className="btn btn-primary w-full btn-lg"
-                style={{ justifyContent: "center", marginTop: 4 }}
-                disabled={loading}
-              >
-                {loading ? <Loader2 size={18} style={{ animation: "spin 0.8s linear infinite" }} /> : null}
-                {loading ? "Signing in..." : "Sign in"}
-              </button>
-            </form>
-
-            {/* Demo credentials hint */}
-            <div style={{ marginTop: 16, padding: "12px 14px", background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-sm)", border: "1px solid rgba(99,102,241,0.2)" }}>
-              <p style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600, marginBottom: 6 }}>DEMO ACCOUNTS (Real Backend)</p>
-              {[
-                { email: "admin@citi.com", label: "Solo Admin", pass: "123456" },
-                { email: "employee@citi.com", label: "Example Employee", pass: "password" },
-              ].map((a) => (
-                <button
-                  key={a.email}
-                  style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--color-text-accent)", padding: "2px 0", fontFamily: "inherit" }}
-                  onClick={() => setForm({ email: a.email, password: a.pass })}
-                >
-                  {a.label}: {a.email}
-                </button>
-              ))}
+              <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "1px" }}>CITI HUB</span>
             </div>
-
-            <p className="auth-footer-link" style={{ marginTop: 20 }}>
-              Don&apos;t have an account? <Link to="/signup">Create account</Link>
+            <p style={{ color: "#94a3b8", fontSize: "16px", maxWidth: "400px", lineHeight: 1.5 }}>
+              Enterprise resource synchronization platform.
             </p>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+      </div>
+
+      <div style={styles.rightPanel}>
+        <motion.div style={styles.orb1} animate={{ y: [0, -30, 0], scale: [1, 1.1, 1] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div style={styles.orb2} animate={{ x: [0, 40, 0], scale: [1, 1.2, 1] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} />
+
+        <div 
+          style={styles.glassCardWrapper}
+          onMouseMove={handleMouseMove}
+        >
+          <motion.div variants={staggerContainer} initial="hidden" animate="visible" style={styles.glassCard}>
+            <div style={{
+              position: "absolute",
+              top: mousePosition.y - 300,
+              left: mousePosition.x - 300,
+              width: 600,
+              height: 600,
+              background: "radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 60%)",
+              pointerEvents: "none",
+              zIndex: 0,
+              transition: "opacity 0.3s"
+            }} />
+
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <motion.div variants={fadeInUp} style={{ marginBottom: 24 }}>
+                <h2 style={{ fontSize: 28, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px", marginBottom: 4 }}>Access Node</h2>
+                <p style={{ fontSize: 14, color: "#94a3b8", margin: 0 }}>Securely authenticate your session.</p>
+              </motion.div>
+
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: "auto" }} 
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{ overflow: "hidden", marginBottom: 16 }}
+                  >
+                    <div style={{ padding: "10px 14px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "10px", border: "1px solid rgba(239, 68, 68, 0.2)", display: "flex", gap: 10, alignItems: "center" }}>
+                      <ShieldCheck size={16} style={{ color: "#ef4444" }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#fca5a5" }}>{error}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.div variants={fadeInUp} style={{ display: "flex", gap: "12px", marginBottom: 20 }}>
+                <motion.button
+                  whileHover={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }}
+                  whileTap={{ scale: 0.98 }}
+                  style={styles.socialBtn}
+                  onClick={() => handleSocialLogin("google")}
+                  disabled={!!socialLoading}
+                >
+                  {socialLoading === "google" ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon />}
+                  <span>Google</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }}
+                  whileTap={{ scale: 0.98 }}
+                  style={styles.socialBtn}
+                  onClick={() => handleSocialLogin("github")}
+                  disabled={!!socialLoading}
+                >
+                  {socialLoading === "github" ? <Loader2 size={18} className="animate-spin" /> : <GitHubIcon />}
+                  <span>GitHub</span>
+                </motion.button>
+              </motion.div>
+
+              <motion.div variants={fadeInUp} style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: 20 }}>
+                <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.05)" }} />
+                <span style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>OR</span>
+                <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.05)" }} />
+              </motion.div>
+
+              <form onSubmit={handleSubmit}>
+                <motion.div variants={fadeInUp} style={{ marginBottom: 16 }}>
+                  <div style={{ position: "relative" }}>
+                    <Mail style={styles.icon} size={18} />
+                    <input
+                      type="email"
+                      style={styles.input}
+                      placeholder="Email Address"
+                      value={form.email}
+                      onChange={handleInput("email")}
+                      required
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.div variants={fadeInUp} style={{ marginBottom: 16 }}>
+                  <div style={{ position: "relative" }}>
+                    <Lock style={styles.icon} size={18} />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      style={{ ...styles.input, paddingRight: "44px" }}
+                      placeholder="Password"
+                      value={form.password}
+                      onChange={handleInput("password")}
+                      required
+                    />
+                    <button
+                      type="button"
+                      style={{ position: "absolute", right: 14, top: "15px", background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: 0 }}
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </motion.div>
+
+                <motion.div variants={fadeInUp}>
+                  <motion.button
+                    type="submit"
+                    style={{ ...styles.btnPrimary, cursor: loading ? "wait" : "pointer" }}
+                    disabled={loading}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : "Authenticate"}
+                    {!loading && <ArrowRight size={18} />}
+                  </motion.button>
+                </motion.div>
+              </form>
+
+              <motion.div variants={fadeInUp} style={{ marginTop: 24, textAlign: "center" }}>
+                <span style={{ fontSize: 13, color: "#64748b" }}>
+                  Don't have an account?{" "}
+                  <Link to="/signup" style={{ color: "#fff", fontWeight: 600, textDecoration: "none" }}>
+                    Sign Up
+                  </Link>
+                </span>
+              </motion.div>
+
+              <motion.div variants={fadeInUp} style={{ marginTop: 24, display: "flex", gap: "8px" }}>
+                {[
+                  { email: "admin@citi.com", pass: "123456", label: "Admin" },
+                  { email: "employee@citi.com", pass: "password", label: "User" }
+                ].map((acc) => (
+                  <button
+                    key={acc.email}
+                    onClick={() => setForm({ email: acc.email, password: acc.pass })}
+                    type="button"
+                    style={{ flex: 1, padding: "8px", background: "transparent", border: "1px dashed rgba(255,255,255,0.15)", borderRadius: "8px", color: "#94a3b8", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+                  >
+                     Log in as {acc.label}
+                  </button>
+                ))}
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default LoginPage;

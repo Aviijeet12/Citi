@@ -95,9 +95,27 @@ else
     echo "API Base URL: $API_BASE_URL"
 fi
 
-# Retrieve API endpoints and Lambda URLs from Terraform outputs
-API_ENDPOINTS=$(terraform output -json api_endpoints 2>/dev/null || echo "{}")
-LAMBDA_URLS=$(terraform output -json lambda_urls 2>/dev/null || echo "{}")
+compact_json() {
+    node - <<'NODE'
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  input += chunk;
+});
+process.stdin.on("end", () => {
+  try {
+    const parsed = JSON.parse(input);
+    process.stdout.write(JSON.stringify(parsed));
+  } catch (_err) {
+    process.stdout.write("{}");
+  }
+});
+NODE
+}
+
+# Retrieve API endpoints and Lambda URLs from Terraform outputs (compact to single-line JSON)
+API_ENDPOINTS=$(terraform output -json api_endpoints 2>/dev/null | compact_json || echo "{}")
+LAMBDA_URLS=$(terraform output -json lambda_urls 2>/dev/null | compact_json || echo "{}")
 
 # Generate .env.local configuration file for React frontend
 cat > "$ENVIRONMENT_CONFIG" << EOF

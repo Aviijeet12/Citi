@@ -301,10 +301,10 @@ function json(statusCode, payload) {
   return {
     statusCode,
     headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "*",
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "*",
+      "access-control-allow-methods": "*",
     },
     body: payload === undefined ? "" : JSON.stringify(payload),
   };
@@ -314,9 +314,9 @@ function noContent() {
   return {
     statusCode: 204,
     headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "*",
-      "Access-Control-Allow-Methods": "*",
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "*",
+      "access-control-allow-methods": "*",
     },
     body: "",
   };
@@ -394,7 +394,9 @@ async function ensureSchema() {
         ADD COLUMN IF NOT EXISTS skills_summary TEXT,
         ADD COLUMN IF NOT EXISTS bio TEXT,
         ADD COLUMN IF NOT EXISTS role TEXT,
-        ADD COLUMN IF NOT EXISTS is_system_critical BOOLEAN NOT NULL DEFAULT FALSE
+        ADD COLUMN IF NOT EXISTS is_system_critical BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE,
+        ADD COLUMN IF NOT EXISTS github_id TEXT UNIQUE
       `);
       await client.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'USER'");
       await client.query("ALTER TABLE users ALTER COLUMN role SET NOT NULL");

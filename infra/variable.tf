@@ -39,3 +39,45 @@ variable "aws_postgres_host" {
   type        = string
   default     = null
 }
+
+variable "aws_postgres_name" {
+  description = "PostgreSQL database name for LocalStack."
+  type        = string
+  default     = "postgres"
+}
+
+variable "aws_postgres_user" {
+  description = "PostgreSQL user for LocalStack."
+  type        = string
+  default     = "postgres"
+}
+
+variable "aws_postgres_pass" {
+  description = "PostgreSQL password for LocalStack."
+  type        = string
+  default     = "postgres123"
+}
+
+variable "google_client_id" {
+  description = "Google OAuth Client ID"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth Client Secret"
+  type        = string
+  default     = ""
+}
+
+variable "github_client_id" {
+  description = "GitHub OAuth Client ID"
+  type        = string
+  default     = ""
+}
+
+variable "github_client_secret" {
+  description = "GitHub OAuth Client Secret"
+  type        = string
+  default     = ""
+}

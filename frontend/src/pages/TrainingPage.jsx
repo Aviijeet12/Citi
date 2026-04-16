@@ -20,9 +20,11 @@ export default function TrainingPage() {
     try {
       setLoading(true);
       const data = await trainingRecordsApi.list();
-      setRecords(data.items || []);
+      const items = data?.items || data || [];
+      setRecords(Array.isArray(items) ? items : []);
     } catch (err) {
-      toast("Failed to load training records: " + err.message, "error");
+      // Backend unavailable — silently show empty
+      setRecords([]);
     } finally {
       setLoading(false);
     }

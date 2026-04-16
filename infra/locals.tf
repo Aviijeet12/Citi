@@ -49,7 +49,7 @@ locals {
       handler          = "index.handler"
       path             = abspath(format("%s/../backend/%s", path.module, name))
       patterns         = ["node_modules/.+"]
-      npm_requirements = true
+      npm_requirements = false
     }
   }
   python_names = {
@@ -80,14 +80,19 @@ locals {
     IS_LOCAL      = data.aws_caller_identity.this.id == "000000000000" ? "true" : "false"
     POSTGRES_HOST = data.aws_caller_identity.this.id == "000000000000" ? coalesce(try(trimspace(var.aws_postgres_host), ""), "172.17.0.1") : element(aws_rds_cluster.this.*.endpoint, 0)
     POSTGRES_PORT = data.aws_caller_identity.this.id == "000000000000" ? "5432" : element(aws_rds_cluster.this.*.port, 0)
-    POSTGRES_NAME = data.aws_caller_identity.this.id == "000000000000" ? "postgres" : element(aws_rds_cluster.this.*.database_name, 0)
-    POSTGRES_USER = data.aws_caller_identity.this.id == "000000000000" ? "postgres" : element(aws_rds_cluster.this.*.master_username, 0)
-    POSTGRES_PASS = data.aws_caller_identity.this.id == "000000000000" ? "postgres123" : element(aws_rds_cluster.this.*.master_password, 0)
+    POSTGRES_NAME = data.aws_caller_identity.this.id == "000000000000" ? var.aws_postgres_name : element(aws_rds_cluster.this.*.database_name, 0)
+    POSTGRES_USER = data.aws_caller_identity.this.id == "000000000000" ? var.aws_postgres_user : element(aws_rds_cluster.this.*.master_username, 0)
+    POSTGRES_PASS = data.aws_caller_identity.this.id == "000000000000" ? var.aws_postgres_pass : element(aws_rds_cluster.this.*.master_password, 0)
     MONGO_HOST    = data.aws_caller_identity.this.id == "000000000000" ? coalesce(try(trimspace(var.aws_mongo_host), ""), "172.17.0.1") : try(element(aws_docdb_cluster.this.*.endpoint, 0), "")
     MONGO_PORT    = data.aws_caller_identity.this.id == "000000000000" ? "27017" : try(element(aws_docdb_cluster.this.*.port, 0), "")
     MONGO_NAME    = data.aws_caller_identity.this.id == "000000000000" ? "mongo" : try(element(aws_docdb_cluster.this.*.database_name, 0), "")
     MONGO_USER    = data.aws_caller_identity.this.id == "000000000000" ? "" : try(element(aws_docdb_cluster.this.*.master_username, 0), "")
     MONGO_PASS    = data.aws_caller_identity.this.id == "000000000000" ? "" : try(element(aws_docdb_cluster.this.*.master_password, 0), "")
+    GOOGLE_CLIENT_ID     = var.google_client_id
+    GOOGLE_CLIENT_SECRET = var.google_client_secret
+    GITHUB_CLIENT_ID     = var.github_client_id
+    GITHUB_CLIENT_SECRET = var.github_client_secret
+    APP_URL              = data.aws_caller_identity.this.id == "000000000000" ? "http://localhost:3000" : "https://${local.app_id}.${data.aws_region.this.name}.lambda-url.ap-south-1.on.aws"
   }
   iam_arns = [
     format("arn:%s:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole", data.aws_partition.this.partition),

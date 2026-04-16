@@ -53,6 +53,34 @@ ENVIRONMENT=${1:-"aws"}
 echo "INFO: Deploying infrastructure..."
 echo "INFO: Environment - $ENVIRONMENT"
 
+# Install Node.js service dependencies before Terraform packaging so Lambda bundles
+# can resolve shared runtime modules from @workshop/backend-common.
+shopt -s nullglob
+COMMON_SRC="$PROJECT_ROOT/packages/backend-common"
+if [ -f "$COMMON_SRC/package.json" ]; then
+    echo "INFO: Installing shared backend-common dependencies..."
+    npm install --prefix "$COMMON_SRC" --omit=dev --silent 2>/dev/null || true
+    # Remove heavy prisma engines to keep package size small
+    rm -rf "$COMMON_SRC/node_modules/@prisma/engines"
+    rm -rf "$COMMON_SRC/node_modules/prisma"
+    rm -rf "$COMMON_SRC/node_modules/.bin"
+    rm -rf "$COMMON_SRC/node_modules/.prisma/client/query_engine-*"
+fi
+for pkg in "$PROJECT_ROOT"/backend/*/package.json; do
+    svc_dir="$(dirname "$pkg")"
+    echo "INFO: Installing npm dependencies for $(basename "$svc_dir")..."
+    rm -rf "$svc_dir/node_modules"
+    npm install --prefix "$svc_dir" --omit=dev --silent 2>/dev/null || true
+    common_module="$svc_dir/node_modules/@workshop/backend-common"
+    if [ -L "$common_module" ] || [ -d "$common_module" ]; then
+        rm -rf "$common_module"
+    fi
+    mkdir -p "$(dirname "$common_module")"
+    cp -R "$PROJECT_ROOT/packages/backend-common" "$common_module"
+    npm install --prefix "$svc_dir" --no-save --silent pg 2>/dev/null || true
+done
+shopt -u nullglob
+
 # Change to infrastructure directory
 cd "$INFRA_DIR"
 
@@ -86,9 +114,10 @@ else
 fi
 
 # Initialize Terraform with backend configuration
-if [ -n "$PARTICIPANT_ID" ]; then
+PARTICIPANT_ID=${PARTICIPANT_ID:-"abcd1234"}
+if [ "$ENVIRONMENT" = "local" ] || [ -n "$PARTICIPANT_ID" ]; then
     echo "INFO: Using custom backend configuration..."
-    terraform init -reconfigure -backend-config="bucket=coding-workshop-tfstate-${PARTICIPANT_ID:-abcd1234}" -backend-config="region=${AWS_REGION:-us-east-1}"
+    terraform init -reconfigure -backend-config="bucket=coding-workshop-tfstate-${PARTICIPANT_ID}" -backend-config="region=${AWS_REGION:-us-east-1}"
 else
     echo "WARNING: No backend.config found. Using default backend configuration."
     echo "INFO: For multi-participant workshops, run: ./bin/setup-participant.sh"

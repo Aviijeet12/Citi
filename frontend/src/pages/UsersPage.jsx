@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, Search, Edit2, Trash2, X, Check, AlertCircle,
@@ -132,9 +132,11 @@ export default function UsersPage() {
     try {
       setLoading(true);
       const data = await usersApi.list();
-      setUsers(data.items || []);
+      const items = data?.items || data || [];
+      setUsers(Array.isArray(items) ? items : INITIAL_USERS);
     } catch (err) {
-      toast("Failed to load users: " + err.message, "error");
+      // Backend unavailable — show seed data
+      setUsers(INITIAL_USERS);
     } finally {
       setLoading(false);
     }

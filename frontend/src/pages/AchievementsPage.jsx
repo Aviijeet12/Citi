@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy, Plus, Search, Edit2, Trash2, X, Check, AlertCircle,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth, PERMISSIONS } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { achievementsApi } from "../services/workshopApi";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const CATEGORIES = ["Revenue","Customer","Innovation","Operational","People","Compliance","Technology","Strategy"];
@@ -132,13 +133,31 @@ export default function AchievementsPage() {
   const canWrite = hasPermission(PERMISSIONS.ACHIEVEMENTS_WRITE);
   const canDelete = hasPermission(PERMISSIONS.ACHIEVEMENTS_DELETE);
 
-  const [items, setItems] = useState(INITIAL_ACHIEVEMENTS);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [monthFilter, setMonthFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [modal, setModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const showNotif = useToast();
+
+  const fetchAchievements = async () => {
+    try {
+      setLoading(true);
+      const data = await achievementsApi.list();
+      const items = data?.items || data || [];
+      setItems(Array.isArray(items) && items.length > 0 ? items : INITIAL_ACHIEVEMENTS);
+    } catch (err) {
+      setItems(INITIAL_ACHIEVEMENTS);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAchievements();
+  }, []);
 
   const filtered = useMemo(()=>items.filter(a=>{
     const q=search.toLowerCase();
@@ -156,12 +175,14 @@ export default function AchievementsPage() {
     });
     setModal(null);
     showNotif("Achievement saved");
+    fetchAchievements();
   },[showNotif]);
 
   const handleDelete = useCallback(id=>{
     setItems(prev=>prev.filter(a=>a.id!==id));
     setDeleteTarget(null);
     showNotif("Achievement deleted","error");
+    fetchAchievements();
   },[showNotif]);
 
   const stats = useMemo(()=>({

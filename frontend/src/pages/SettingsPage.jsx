@@ -63,7 +63,7 @@ export default function SettingsPage() {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`nav-item${activeTab === t.id ? " active" : ""}`}
-              style={{ width: "100%", border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", margin: "2px 8px", width: "calc(100% - 16px)" }}
+              style={{ border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", margin: "2px 8px", width: "calc(100% - 16px)" }}
               id={`btn-settings-tab-${t.id}`}
             >
               <span className="nav-item-icon">{t.icon}</span>

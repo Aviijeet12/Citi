@@ -23,9 +23,30 @@ let endpoints = {};
 
 try {
   const envContent = fs.readFileSync(envFile, 'utf8');
-  const match = envContent.match(/VITE_API_ENDPOINTS='(.+)'/) || envContent.match(/REACT_APP_API_ENDPOINTS='(.+)'/);
-  if (match) {
-    endpoints = JSON.parse(match[1]);
+
+  function readEnvValue(content, key) {
+    const lines = content.split(/\r?\n/);
+    const prefix = `${key}=`;
+    const line = lines.find((value) => value.startsWith(prefix));
+    if (!line) return null;
+    return line.slice(prefix.length).trim();
+  }
+
+  function stripSurroundingQuotes(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'"))) {
+      return text.slice(1, -1);
+    }
+    return text;
+  }
+
+  const rawEndpoints =
+    readEnvValue(envContent, 'VITE_API_ENDPOINTS') ||
+    readEnvValue(envContent, 'REACT_APP_API_ENDPOINTS');
+
+  if (rawEndpoints) {
+    endpoints = JSON.parse(stripSurroundingQuotes(rawEndpoints));
     console.log('Loaded endpoints:', Object.keys(endpoints));
   }
 } catch (err) {
@@ -35,10 +56,13 @@ try {
 }
 
 const server = http.createServer((req, res) => {
-  // Enable CORS
+  // Enable CORS (no cookies/credentials; JWT is sent via Authorization header)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Authorization, Content-Type, Accept, X-Requested-With, X-Request-Id, X-Requested-Id'
+  );
   res.setHeader('Access-Control-Max-Age', '86400');
 
   // Handle preflight
@@ -93,18 +117,29 @@ const server = http.createServer((req, res) => {
   delete headers['sec-fetch-mode'];
   delete headers['sec-fetch-dest'];
 
-  // Keep only essential headers
+  // Keep only essential headers, but *do* forward authentication headers.
   const options = {
     hostname: target.hostname,
     port: target.port,
     path: target.path,
     method: req.method,
     headers: {
-      'accept': headers.accept || 'application/json',
+      accept: headers.accept || 'application/json',
       'content-type': headers['content-type'] || 'application/json',
       'user-agent': headers['user-agent'] || 'proxy-server',
-      'host': target.host
-    }
+
+      // Auth / tracing
+      ...(headers.authorization ? { authorization: headers.authorization } : {}),
+      ...(headers.cookie ? { cookie: headers.cookie } : {}),
+      ...(headers['x-request-id'] ? { 'x-request-id': headers['x-request-id'] } : {}),
+
+      // Preserve the client-visible host/proto for OAuth redirect_uri construction
+      'x-forwarded-host': req.headers.host,
+      'x-forwarded-proto': req.socket.encrypted ? 'https' : 'http',
+
+      // Target host for the upstream request
+      host: target.host,
+    },
   };
 
   const proxyReq = protocol.request(options, (proxyRes) => {

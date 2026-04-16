@@ -39,6 +39,28 @@ export const PERMISSIONS = {
   TRAINING_DELETE: "training_records.delete",
 };
 
+function resolvePrimaryRole(user) {
+  const roleCodes = Array.isArray(user?.role_codes)
+    ? user.role_codes
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+
+  if (roleCodes.includes(ROLES.ADMIN)) return ROLES.ADMIN;
+  if (roleCodes.includes(ROLES.MANAGER)) return ROLES.MANAGER;
+  if (roleCodes.includes(ROLES.CONTRIBUTOR)) return ROLES.CONTRIBUTOR;
+  if (roleCodes.includes(ROLES.VIEWER)) return ROLES.VIEWER;
+
+  const systemRole = typeof user?.role === "string" ? user.role.trim().toLowerCase() : "";
+  if (systemRole === "admin") return ROLES.ADMIN;
+  if (systemRole === "manager") return ROLES.MANAGER;
+
+  // Backend system role USER represents a standard employee; default to contributor.
+  if (systemRole === "user") return ROLES.CONTRIBUTOR;
+
+  return ROLES.VIEWER;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,8 +73,9 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         setUser({
           ...session.user,
+          role: resolvePrimaryRole(session.user),
           // Map backend permissions to frontend constants
-          permissions: session.user.permissions || []
+          permissions: session.user.permissions || [],
         });
       }
     } catch (err) {
@@ -64,14 +87,38 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    refreshSession();
+    // Check for tokens in the hash (OAuth callback)
+    const hash = window.location.hash;
+    if (hash && (hash.includes("access_token=") || hash.includes("error="))) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const error = params.get("error");
+
+      if (error) {
+        setError(decodeURIComponent(error));
+        window.location.hash = "";
+      } else if (accessToken) {
+        apiClient.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        // Clean URL first
+        window.history.replaceState(null, "", window.location.pathname);
+        // Then refresh to get user profile
+        refreshSession();
+      }
+    } else {
+      refreshSession();
+    }
   }, [refreshSession]);
 
   const login = useCallback(async (email, password) => {
     setError("");
     const session = await apiClient.bootstrapSession(true, email, password);
     if (session?.user) {
-      const userData = { ...session.user, permissions: session.user.permissions || [] };
+      const userData = {
+        ...session.user,
+        role: resolvePrimaryRole(session.user),
+        permissions: session.user.permissions || [],
+      };
       setUser(userData);
       return userData;
     }
@@ -107,9 +154,8 @@ export function AuthProvider({ children }) {
   const hasRole = useCallback(
     (...roles) => {
       if (!user) return false;
-      // Backend roles might be codes or object. Handle both.
-      const userRole = typeof user.role === 'string' ? user.role : user.role?.code;
-      return roles.includes(userRole);
+      const userRole = String(user.role || "").trim().toLowerCase();
+      return roles.map((r) => String(r || "").trim().toLowerCase()).includes(userRole);
     },
     [user]
   );
@@ -122,6 +168,14 @@ export function AuthProvider({ children }) {
         error,
         login,
         signup,
+        loginWithGoogle: async () => {
+          setLoading(true);
+          window.location.href = apiClient.getServiceUrl("auth-service", "google/login");
+        },
+        loginWithGitHub: async () => {
+          setLoading(true);
+          window.location.href = apiClient.getServiceUrl("auth-service", "github/login");
+        },
         logout,
         hasPermission,
         hasRole,

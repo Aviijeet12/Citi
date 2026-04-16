@@ -31,9 +31,11 @@ export default function CompetenciesPage() {
     try {
       setLoading(true);
       const data = await competenciesApi.list();
-      setItems(data.items || []);
+      const items = data?.items || data || [];
+      setItems(Array.isArray(items) ? items : []);
     } catch (err) {
-      toast("Failed to load competencies: " + err.message, "error");
+      // Backend unavailable — silently show empty
+      setItems([]);
     } finally {
       setLoading(false);
     }

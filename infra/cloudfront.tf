@@ -1,5 +1,5 @@
 resource "aws_cloudfront_origin_access_control" "this" {
-  count                             = data.aws_caller_identity.this.id != "000000000000" ? 1 : 0
+  count                             = 1
   name                              = local.origin_id
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -7,7 +7,7 @@ resource "aws_cloudfront_origin_access_control" "this" {
 }
 
 resource "aws_cloudfront_distribution" "this" {
-  count               = data.aws_caller_identity.this.id != "000000000000" ? 1 : 0
+  count               = 1
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
@@ -24,11 +24,6 @@ resource "aws_cloudfront_distribution" "this" {
     content {
       domain_name = origin.value.domain_name
       origin_id   = origin.value.origin_id
-
-      custom_header {
-        name  = "X-Forwarded-Host"
-        value = origin.value.domain_name
-      }
 
       custom_origin_config {
         http_port              = 80
@@ -120,7 +115,7 @@ resource "aws_cloudfront_distribution" "this" {
 }
 
 resource "aws_s3_bucket_policy" "this" {
-  count  = data.aws_caller_identity.this.id != "000000000000" ? 1 : 0
+  count  = 1
   bucket = aws_s3_bucket.this.id
   policy = jsonencode({
     Version = "2012-10-17"

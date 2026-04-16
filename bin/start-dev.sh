@@ -5,6 +5,9 @@
 
 set -e
 
+# Ensure ~/.local/bin is in PATH for LocalStack, Terraform, etc.
+export PATH="$HOME/.local/bin:$PATH"
+
 # Usage helper
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "Usage: $0"
@@ -46,10 +49,23 @@ FRONTEND_DIR="$PROJECT_ROOT/frontend"
 export AWS_ENDPOINT_URL="http://localhost:4566"
 export AWS_ENDPOINT_URL_S3="http://s3.localhost.localstack.cloud:4566"
 
+# Load participant configuration (provides PARTICIPANT_ID, TF_VAR_aws_app_code, POSTGRES_HOST, etc.)
+PARTICIPANT_CONFIG="$PROJECT_ROOT/ENVIRONMENT.config"
+if [ -f "$PARTICIPANT_CONFIG" ]; then
+    source "$PARTICIPANT_CONFIG"
+fi
+
 # ============================================================
 # STEP 1: Check and Start PostgreSQL
 # ============================================================
 echo -e "[1/5] Checking PostgreSQL..."
+
+# Use environment variables if set, otherwise default to local
+export PGHOST="${POSTGRES_HOST:-localhost}"
+export PGPORT="${POSTGRES_PORT:-5432}"
+export PGUSER="${POSTGRES_USER:-postgres}"
+export PGPASSWORD="${POSTGRES_PASS:-postgres123}"
+export PGDATABASE="${POSTGRES_NAME:-postgres}"
 
 if ! command -v psql &> /dev/null; then
     echo -e "ERROR: PostgreSQL (psql) is not installed"
@@ -60,12 +76,17 @@ fi
 PG_OK=false
 
 if pg_isready -q; then
-    # Check if bound to 0.0.0.0 so Docker Lambda containers can reach it
-    if ss -ltn 2>/dev/null | grep -q '0.0.0.0:5432'; then
+    if [ "$PGHOST" != "localhost" ] && [ "$PGHOST" != "127.0.0.1" ]; then
         PG_OK=true
-        echo -e "  ✓ PostgreSQL is running and bound to 0.0.0.0:5432"
+        echo -e "  ✓ External PostgreSQL is running at $PGHOST:$PGPORT"
     else
-        echo -e "  ⚠ PostgreSQL running but not bound to 0.0.0.0, reconfiguring..."
+        # Check if bound to 0.0.0.0 so Docker Lambda containers can reach it
+        if ss -ltn 2>/dev/null | grep -q '0.0.0.0:5432'; then
+            PG_OK=true
+            echo -e "  ✓ PostgreSQL is running and bound to 0.0.0.0:5432"
+        else
+            echo -e "  ⚠ PostgreSQL running but not bound to 0.0.0.0, reconfiguring..."
+        fi
     fi
 fi
 
@@ -251,7 +272,8 @@ echo -e "  ✓ Docker is running"
 
 # Check if LocalStack is running
 LOCALSTACK_OK=false
-LOCALSTACK_IMAGE="${LOCALSTACK_IMAGE:-localstack/localstack-pro}"
+# Default to the community image to avoid requiring a Pro license in local development.
+LOCALSTACK_IMAGE="${LOCALSTACK_IMAGE:-localstack/localstack}"
 if curl -s http://localhost:4566/_localstack/health > /dev/null 2>&1; then
     # Verify the correct image is running
     RUNNING_IMAGE=$(docker inspect localstack-main --format '{{.Config.Image}}' 2>/dev/null || echo "")
@@ -344,21 +366,31 @@ for req in "$PROJECT_ROOT"/backend/*/requirements.txt; do
 done
 
 # Install npm dependencies into each Node.js service directory for hot-reload
+COMMON_SRC="$PROJECT_ROOT/packages/backend-common"
+if [ -f "$COMMON_SRC/package.json" ]; then
+    echo -e "  Installing shared backend-common dependencies..."
+    npm install --prefix "$COMMON_SRC" --omit=dev --silent 2>/dev/null || true
+fi
 for pkg in "$PROJECT_ROOT"/backend/*/package.json; do
     svc_dir="$(dirname "$pkg")"
     echo -e "  Installing npm dependencies for $(basename "$svc_dir")..."
     npm install --prefix "$svc_dir" --silent 2>/dev/null || true
+    common_module="$svc_dir/node_modules/@workshop/backend-common"
+    if [ -L "$common_module" ] || [ -d "$common_module" ]; then
+        rm -rf "$common_module"
+    fi
+    mkdir -p "$(dirname "$common_module")"
+    cp -R "$PROJECT_ROOT/packages/backend-common" "$common_module"
+    # Ensure shared runtime deps used by @workshop/backend-common are resolvable at Lambda runtime.
+    npm install --prefix "$svc_dir" --no-save --silent pg 2>/dev/null || true
 done
 shopt -u nullglob
 
 # Change to infrastructure directory
 cd "$INFRA_DIR"
 
-# Load participant configuration (provides PARTICIPANT_ID, TF_VAR_aws_app_code, etc.)
-PARTICIPANT_CONFIG="$PROJECT_ROOT/ENVIRONMENT.config"
-if [ -f "$PARTICIPANT_CONFIG" ]; then
-    source "$PARTICIPANT_CONFIG"
-fi
+# Infrastructure directory is already set as INFRA_DIR
+cd "$INFRA_DIR"
 
 # Override credentials for LocalStack
 export AWS_ENDPOINT_URL="http://localhost:4566"

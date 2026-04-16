@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users2, Plus, Search, Edit2, Trash2, X, Check, AlertCircle,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth, PERMISSIONS } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { teamsApi } from "../services/workshopApi";
 
 const INITIAL_TEAMS = [
   { id: "t1", name: "Alpha Squad", leader: "Jordan Pierce", department: "Engineering", location: "New York", members: 9, memberList: ["Jordan Pierce","Alex Kim","Sam Lee","Dana White","Chris Brown","Pat Jones","Morgan Chen","Taylor Swift","Casey Young"], description:"Core platform engineering team", status:"active", created:"2024-01-10" },
@@ -164,11 +165,29 @@ export default function TeamsPage() {
   const canWrite = hasPermission(PERMISSIONS.TEAMS_WRITE);
   const canDelete = hasPermission(PERMISSIONS.TEAMS_DELETE);
 
-  const [teams, setTeams] = useState(INITIAL_TEAMS);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const showNotif = useToast();
+
+  const fetchTeams = async () => {
+    try {
+      setLoading(true);
+      const data = await teamsApi.list();
+      const items = data?.items || data || [];
+      setTeams(Array.isArray(items) && items.length > 0 ? items : INITIAL_TEAMS);
+    } catch (err) {
+      setTeams(INITIAL_TEAMS);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
 
   const filtered = useMemo(() => teams.filter(t => {
     const q = search.toLowerCase();
@@ -183,12 +202,14 @@ export default function TeamsPage() {
     });
     setModal(null);
     showNotif(data.id && teams.find(t=>t.id===data.id) ? "Team updated" : "Team created");
+    fetchTeams();
   },[teams,showNotif]);
 
   const handleDelete = useCallback(id => {
     setTeams(prev => prev.filter(t => t.id !== id));
     setDeleteTarget(null);
     showNotif("Team deleted","error");
+    fetchTeams();
   },[showNotif]);
 
   return (

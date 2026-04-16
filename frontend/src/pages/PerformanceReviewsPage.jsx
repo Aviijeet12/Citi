@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star, Plus, Search, Edit2, Trash2, X, Check, AlertCircle,
@@ -228,9 +228,11 @@ export default function PerformanceReviewsPage() {
     try {
       setLoading(true);
       const data = await performanceReviewsApi.list();
-      setReviews(data.items || []);
+      const items = data?.items || data || [];
+      setReviews(Array.isArray(items) && items.length > 0 ? items : INITIAL_REVIEWS);
     } catch (err) {
-      toast("Failed to load reviews: " + err.message, "error");
+      // Backend unavailable — show seed data
+      setReviews(INITIAL_REVIEWS);
     } finally {
       setLoading(false);
     }

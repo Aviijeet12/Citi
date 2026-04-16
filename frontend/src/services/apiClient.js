@@ -188,9 +188,86 @@ function getErrorMessage(payload, fallback) {
   return fallback;
 }
 
+async function fetchCurrentUser(accessToken) {
+  const response = await fetch(buildServiceUrl("auth-service", "me"), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const payload = await parseResponsePayload(response);
+
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload, "Unable to load current user"),
+      response.status,
+      payload?.details || null
+    );
+  }
+
+  return payload?.user || null;
+}
+
+async function refreshSessionTokens(refreshToken) {
+  const response = await fetch(buildServiceUrl("auth-service", "refresh"), {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  const payload = await parseResponsePayload(response);
+
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload, "Unable to refresh session"),
+      response.status,
+      payload?.details || null
+    );
+  }
+
+  if (!payload?.access_token) {
+    throw new ApiError("Refresh succeeded but did not return access token", 500, payload);
+  }
+
+  sessionCache = {
+    ...(sessionCache || {}),
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token || refreshToken || null,
+    tokenType: payload.token_type || sessionCache?.tokenType || "Bearer",
+    user: sessionCache?.user || null,
+    createdAt: new Date().toISOString(),
+  };
+
+  saveStoredSession(sessionCache);
+  return sessionCache;
+}
+
 async function bootstrapSession(forceRefresh = false, email = null, password = null) {
   if (!forceRefresh && sessionCache?.accessToken && !email) {
-    return sessionCache;
+    if (sessionCache.user) {
+      return sessionCache;
+    }
+
+    try {
+      const user = await fetchCurrentUser(sessionCache.accessToken);
+      sessionCache = { ...sessionCache, user };
+      saveStoredSession(sessionCache);
+      return sessionCache;
+    } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401 && sessionCache?.refreshToken) {
+        await refreshSessionTokens(sessionCache.refreshToken);
+        const user = await fetchCurrentUser(sessionCache.accessToken);
+        sessionCache = { ...sessionCache, user };
+        saveStoredSession(sessionCache);
+        return sessionCache;
+      }
+      throw err;
+    }
   }
 
   if (!email) {
@@ -331,7 +408,17 @@ export async function request(serviceName, options = {}) {
   const payload = await parseResponsePayload(response);
 
   if (response.status === 401 && retryOnAuthFailure) {
-    await bootstrapSession(true);
+    if (sessionCache?.refreshToken) {
+      try {
+        await refreshSessionTokens(sessionCache.refreshToken);
+      } catch (err) {
+        clearSession();
+        throw err;
+      }
+    } else {
+      await bootstrapSession(true);
+    }
+
     return request(serviceName, { ...options, retryOnAuthFailure: false });
   }
 
@@ -355,5 +442,20 @@ export const apiClient = {
     request(serviceName, { method: "PUT", path, body, headers }),
   delete: (serviceName, path = "", headers = {}) =>
     request(serviceName, { method: "DELETE", path, headers }),
+
   bootstrapSession,
+  clearSession,
+  getServiceUrl,
+
+  setSession: (data) => {
+    sessionCache = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || null,
+      user: data.user || null,
+      tokenType: data.token_type || "Bearer",
+      createdAt: new Date().toISOString(),
+    };
+    saveStoredSession(sessionCache);
+    return sessionCache;
+  },
 };

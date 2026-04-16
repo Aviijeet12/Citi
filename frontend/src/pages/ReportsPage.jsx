@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart3, TrendingUp, TrendingDown, Users, Users2, Trophy, AlertTriangle, Star, Activity, Zap, Target, Clock, Filter } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { reportsApi } from "../services/workshopApi";
+import { Loader2 } from "lucide-react";
 
 const HIGH_POTENTIAL = [
   { name:"Jordan Pierce", team:"Alpha Squad", score:96, department:"Engineering", trend:"up", skills:["Cloud","Leadership","Agile"] },
@@ -48,6 +50,52 @@ const RISK_TAG = { high:"tag-danger", medium:"tag-warning", low:"tag-success" };
 export default function ReportsPage() {
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState("summary");
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState(SUMMARY_METRICS);
+  const [hpData, setHpData] = useState(HIGH_POTENTIAL);
+  const [gapsData, setGapsData] = useState(CRITICAL_GAPS);
+  const [trainingData, setTrainingData] = useState(TRAINING_DATA);
+  const [riskData, setRiskData] = useState(ATTRITION_RISK);
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const [summary, hp, gaps, training, risk] = await Promise.all([
+        reportsApi.summary(),
+        reportsApi.highPotentialEmployees(),
+        reportsApi.criticalSkillGaps(),
+        reportsApi.trainingCompletion(),
+        reportsApi.attritionRiskEmployees()
+      ]);
+
+      // If we have real data, map it. Otherwise keep fallbacks.
+      if (summary?.item) {
+        // Simple mapping for demo
+        setMetrics(SUMMARY_METRICS.map(m => ({ ...m, value: summary.item[m.label.toLowerCase().replace(/ /g, '_')] || m.value })));
+      }
+      
+      const hpItems = hp?.items || hp || [];
+      if (hpItems.length > 0) setHpData(hpItems);
+      
+      const gapItems = gaps?.items || gaps || [];
+      if (gapItems.length > 0) setGapsData(gapItems);
+      
+      const trainItems = training?.items || training || [];
+      if (trainItems.length > 0) setTrainingData(trainItems);
+      
+      const riskItems = risk?.items || risk || [];
+      if (riskItems.length > 0) setRiskData(riskItems);
+
+    } catch (err) {
+      // Keep static fallbacks
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
 
   const tabs = [
     { id:"summary", label:"Summary", icon:<BarChart3 size={14}/> },
@@ -73,7 +121,7 @@ export default function ReportsPage() {
 
       {/* Top summary cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:28}}>
-        {SUMMARY_METRICS.map((m,i)=>(
+        {metrics.map((m,i)=>(
           <motion.div key={m.label} className="metric-card" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:i*0.06}}>
             <div className="metric-icon" style={{background:`${m.color}18`}}><span style={{color:m.color}}>{m.icon}</span></div>
             <div className="metric-value">{m.value}</div>
@@ -139,7 +187,7 @@ export default function ReportsPage() {
             <table className="data-table">
               <thead><tr><th>#</th><th>Employee</th><th>Department</th><th>Score</th><th>Trend</th><th>Key Skills</th></tr></thead>
               <tbody>
-                {HIGH_POTENTIAL.map((hp,i)=>(
+                {hpData.map((hp,i)=>(
                   <tr key={hp.name}>
                     <td>
                       <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
@@ -188,7 +236,7 @@ export default function ReportsPage() {
             <table className="data-table">
               <thead><tr><th>Skill</th><th>Affected</th><th>Severity</th><th>Teams</th><th>Recommended Action</th></tr></thead>
               <tbody>
-                {CRITICAL_GAPS.map(g=>(
+                {gapsData.map(g=>(
                   <tr key={g.skill}>
                     <td style={{fontWeight:600,fontSize:13}}>{g.skill}</td>
                     <td><span style={{fontWeight:700,color:"var(--color-text-primary)"}}>{g.affected}</span> <span style={{fontSize:12,color:"var(--color-text-muted)"}}>employees</span></td>
@@ -211,7 +259,7 @@ export default function ReportsPage() {
             <table className="data-table">
               <thead><tr><th>Program</th><th>Department</th><th>Enrolled</th><th>Completed</th><th>Completion Rate</th></tr></thead>
               <tbody>
-                {TRAINING_DATA.map(t=>(
+                {trainingData.map(t=>(
                   <tr key={t.program}>
                     <td style={{fontWeight:600,fontSize:13}}>{t.program}</td>
                     <td style={{fontSize:13}}>{t.department}</td>
@@ -238,7 +286,7 @@ export default function ReportsPage() {
             <AlertTriangle size={16} style={{flexShrink:0}}/>
             <span>{ATTRITION_RISK.length} employees show attrition risk signals. Immediate action recommended for high-risk employees.</span>
           </div>
-          {ATTRITION_RISK.map(e=>(
+          {riskData.map(e=>(
             <div key={e.name} className="glass-card">
               <div style={{padding:"20px 24px"}}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>

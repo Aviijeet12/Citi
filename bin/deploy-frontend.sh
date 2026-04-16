@@ -98,22 +98,41 @@ fi
 # Retrieve API configuration from Terraform outputs
 API_BASE_URL=$(terraform output -raw api_base_url 2>/dev/null || echo "")
 echo "INFO: API Base URL - $API_BASE_URL"
-API_ENDPOINTS=$(terraform output -json api_endpoints 2>/dev/null || echo "{}")
+
+compact_json() {
+    node - <<'NODE'
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  input += chunk;
+});
+process.stdin.on("end", () => {
+  try {
+    const parsed = JSON.parse(input);
+    process.stdout.write(JSON.stringify(parsed));
+  } catch (_err) {
+    process.stdout.write("{}");
+  }
+});
+NODE
+}
+
+API_ENDPOINTS=$(terraform output -json api_endpoints 2>/dev/null | compact_json || echo "{}")
 echo "INFO: API Endpoints - $API_ENDPOINTS"
 
 # Local Development: Skip frontend build (use start-dev.sh instead)
 # AWS Deployment: Build and upload to S3
-if [ "$ENVIRONMENT" = "local" ]; then
-    echo ""
-    echo "======================================================="
-    echo "Local: Frontend should be run with './bin/start-dev.sh'"
-    echo "======================================================="
-    echo "To run frontend locally:"
-    echo "  1. Start dev environment: ./bin/start-dev.sh"
-    echo "  2. Open browser: http://localhost:3000"
-    echo ""
-    exit 0
-fi
+# if [ "$ENVIRONMENT" = "local" ]; then
+#     echo ""
+#     echo "======================================================="
+#     echo "Local: Frontend should be run with './bin/start-dev.sh'"
+#     echo "======================================================="
+#     echo "To run frontend locally:"
+#     echo "  1. Start dev environment: ./bin/start-dev.sh"
+#     echo "  2. Open browser: http://localhost:3000"
+#     echo ""
+#     exit 0
+# fi
 
 # Build React frontend for production
 cd "$FRONTEND_DIR"
@@ -150,7 +169,7 @@ if [ ! -f .env ] && [ -f $BUILD_DIR/.env.local ]; then
 fi
 
 # Upload built frontend to S3 (with deletion of old files)
-aws s3 sync $BUILD_DIR/ s3://$BUCKET_NAME/ --delete $AWS_ENDPOINT
+aws s3 sync $BUILD_DIR/ s3://$BUCKET_NAME/ --delete
 
 # Invalidate CloudFront cache for AWS deployments
 if [ "$ENVIRONMENT" = "aws" ]; then
