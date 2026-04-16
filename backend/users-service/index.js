@@ -146,6 +146,10 @@ exports.handler = async (event) => {
               ? deriveSystemRoleFromRoleCodes(request.body.role_codes)
               : "USER";
 
+          if (requestedSystemRole === "ADMIN") {
+            throw new HttpError(403, "The ADMIN role is restricted to the singleton system account");
+          }
+
           const password = await hashPassword(request.body.password);
           const insert = await client.query(
             `
@@ -232,6 +236,14 @@ exports.handler = async (event) => {
           const status = request.body.status ? String(request.body.status).trim().toLowerCase() : existing.status;
           const systemRole = request.body.role ? normalizeSystemRole(request.body.role) : existing.role;
 
+          if (existing.is_system_critical) {
+            if (systemRole !== "ADMIN" || status !== "active") {
+              throw new HttpError(403, "Cannot demote or deactivate the singleton system administrator");
+            }
+          } else if (systemRole === "ADMIN") {
+            throw new HttpError(403, "Promotion to the ADMIN role is strictly restricted");
+          }
+
           await client.query(
             `
               UPDATE users
@@ -315,6 +327,9 @@ exports.handler = async (event) => {
         const existing = await getUserById(client, userId);
         if (!existing) {
           throw new HttpError(404, "User not found");
+        }
+        if (existing.is_system_critical) {
+          throw new HttpError(403, "Cannot delete the singleton system administrator");
         }
         await client.query("DELETE FROM users WHERE id = $1", [userId]);
         await recordAudit(client, actor.id, "users.delete", "user", userId, { email: existing.email });

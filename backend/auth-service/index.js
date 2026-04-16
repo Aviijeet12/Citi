@@ -30,6 +30,48 @@ exports.handler = async (event) => {
     const client = await pool.connect();
 
     try {
+      if (request.method === "POST" && request.segments[0] === "signup") {
+        requireFields(request.body, ["email", "display_name", "password"]);
+        await client.query("BEGIN");
+        try {
+          const email = normalizeEmail(request.body.email);
+          const existing = await client.query("SELECT id FROM users WHERE email = $1", [email]);
+          if (existing.rowCount > 0) {
+            throw new HttpError(400, "A user with this email already exists");
+          }
+          const password = await hashPassword(request.body.password);
+          const systemRole = "USER";
+          const roleCodes = ["contributor"];
+
+          const insert = await client.query(
+            "INSERT INTO users (email, display_name, password_hash, password_salt, status, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            [email, String(request.body.display_name).trim(), password.hash, password.salt, "active", systemRole]
+          );
+          const userId = insert.rows[0].id;
+          await setUserRoles(client, userId, roleCodes);
+          await recordAudit(client, userId, "auth.signup", "user", userId, { email });
+          await client.query("COMMIT");
+
+          const user = await getUserByEmail(client, email);
+          const tokens = await issueAuthTokens(client, user);
+          return ok({
+            user: {
+              id: user.id,
+              email: user.email,
+              display_name: user.display_name,
+              status: user.status,
+              role: user.role,
+              role_codes: user.role_codes,
+              permissions: user.permissions,
+            },
+            ...tokens,
+          });
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      }
+
       if (request.method === "POST" && request.segments[0] === "login") {
         requireFields(request.body, ["email", "password"]);
         const user = await getUserByEmail(client, request.body.email);

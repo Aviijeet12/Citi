@@ -80,9 +80,15 @@ export function AuthProvider({ children }) {
 
   const signup = useCallback(async ({ name, email, password }) => {
     setError("");
-    // In a real scenario, call usersApi.create or a signup endpoint
-    const response = await apiClient.post("users-service", "signup", { name, email, password });
-    return login(email, password);
+    const response = await apiClient.post("auth-service", "signup", { 
+      display_name: name, 
+      email, 
+      password 
+    });
+    if (response) {
+      return login(email, password);
+    }
+    throw new Error("Signup failed");
   }, [login]);
 
   const logout = useCallback(() => {

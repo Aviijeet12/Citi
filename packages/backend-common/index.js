@@ -5,8 +5,8 @@ const { disconnectPrisma, getDatabaseUrl, getPrismaClient } = require("./prisma/
 const pools = new Map();
 let schemaPromise = null;
 
-const DEFAULT_ADMIN_EMAIL = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@acme.local";
-const DEFAULT_ADMIN_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin123!";
+const DEFAULT_ADMIN_EMAIL = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@citi.com";
+const DEFAULT_ADMIN_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD || "123456";
 const JWT_SECRET = process.env.JWT_SECRET || "local-dev-jwt-secret-change-me";
 const ACCESS_TOKEN_TTL_SECONDS = Number.parseInt(process.env.ACCESS_TOKEN_TTL_SECONDS || "3600", 10);
 const REFRESH_TOKEN_TTL_DAYS = Number.parseInt(process.env.REFRESH_TOKEN_TTL_DAYS || "7", 10);

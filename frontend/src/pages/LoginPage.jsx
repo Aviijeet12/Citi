@@ -182,7 +182,7 @@ export default function LoginPage() {
                     type="email"
                     className="form-input"
                     style={{ paddingLeft: 40 }}
-                    placeholder="admin@acme.local"
+                    placeholder="admin@citi.com"
                     value={form.email}
                     onChange={handleInput("email")}
                     autoComplete="email"
@@ -202,7 +202,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     className="form-input"
                     style={{ paddingLeft: 40, paddingRight: 40 }}
-                    placeholder="Admin123!"
+                    placeholder="123456"
                     value={form.password}
                     onChange={handleInput("password")}
                     autoComplete="current-password"
@@ -236,8 +236,8 @@ export default function LoginPage() {
             <div style={{ marginTop: 16, padding: "12px 14px", background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-sm)", border: "1px solid rgba(99,102,241,0.2)" }}>
               <p style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600, marginBottom: 6 }}>DEMO ACCOUNTS (Real Backend)</p>
               {[
-                { email: "admin@acme.local", label: "Admin", pass: "Admin123!" },
-                { email: "manager@citibank.com", label: "Example Manager", pass: "demo123" },
+                { email: "admin@citi.com", label: "Solo Admin", pass: "123456" },
+                { email: "employee@citi.com", label: "Example Employee", pass: "password" },
               ].map((a) => (
                 <button
                   key={a.email}

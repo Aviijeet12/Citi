@@ -30,41 +30,29 @@ export default function SignupPage() {
   const { signup, loginWithGoogle, loginWithGitHub } = useAuth();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: ROLES.VIEWER });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState("");
   const [error, setError] = useState("");
-  const [step, setStep] = useState(1); // 1=account info, 2=role
 
   const handleInput = useCallback((field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
     setError("");
   }, []);
 
-  const validateStep1 = () => {
-    if (!form.name.trim()) return "Full name is required";
-    if (!form.email.includes("@")) return "Valid email is required";
-    if (form.password.length < 6) return "Password must be at least 6 characters";
-    if (form.password !== form.confirmPassword) return "Passwords do not match";
-    return "";
-  };
-
-  const handleNext = (e) => {
-    e.preventDefault();
-    const err = validateStep1();
-    if (err) { setError(err); return; }
-    setStep(2);
-    setError("");
-  };
-
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) { setError("Full name is required"); return; }
+    if (!form.email.includes("@")) { setError("Valid email is required"); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
+
     setLoading(true);
     setError("");
     try {
-      await signup({ name: form.name, email: form.email, role: form.role });
+      await signup({ name: form.name, email: form.email, password: form.password });
       navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Signup failed. Please try again.");
@@ -109,13 +97,17 @@ export default function SignupPage() {
           <h1 className="auth-left-title">Join the<br />Platform</h1>
           <p className="auth-left-desc">
             Create your account to access the WorkForce Command Center. 
-            Choose your role to get the right level of access.
+            All new accounts are created as <b>Contributor</b> by default.
           </p>
 
           <div style={{ marginTop: 32 }}>
-            <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600 }}>Role Permissions Overview</p>
-            {roleOptions.map((r) => (
-              <div key={r.value} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600 }}>System Roles</p>
+            {[
+              { label: "Admin", desc: "admin@citi.com / 123456", color: "admin" },
+              { label: "Manager", desc: "Manage team & achievements", color: "manager" },
+              { label: "Contributor", desc: "New User Default - Task Access", color: "contributor" },
+            ].map((r) => (
+              <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <span className={`topbar-badge badge-${r.color}`}>{r.label}</span>
                 <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{r.desc}</span>
               </div>
@@ -132,33 +124,9 @@ export default function SignupPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Step progress */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
-            {[1, 2].map((s) => (
-              <div key={s} style={{ display: "flex", alignItems: "center", gap: 8, flex: s < 2 ? 1 : "none" }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: step >= s ? "var(--gradient-primary)" : "rgba(99,102,241,0.1)",
-                  border: "1px solid",
-                  borderColor: step >= s ? "transparent" : "var(--color-border)",
-                  fontSize: 12, fontWeight: 700, color: step >= s ? "white" : "var(--color-text-muted)",
-                  flexShrink: 0,
-                }}>
-                  {step > s ? <CheckCircle2 size={14}/> : s}
-                </div>
-                {s < 2 && (
-                  <div style={{ flex: 1, height: 1, background: step > s ? "var(--color-accent-primary)" : "var(--color-border)" }} />
-                )}
-              </div>
-            ))}
-            <span style={{ fontSize: 12, color: "var(--color-text-muted)", marginLeft: 8 }}>
-              {step === 1 ? "Account Info" : "Select Role"}
-            </span>
-          </div>
-
           <div className="auth-form-header">
-            <h2>{step === 1 ? "Create account" : "Choose your role"}</h2>
-            <p>{step === 1 ? "Fill in your details to get started" : "Select the access level that fits your position"}</p>
+            <h2>Create account</h2>
+            <p>Fill in your details to get started</p>
           </div>
 
           <AnimatePresence>
@@ -176,101 +144,70 @@ export default function SignupPage() {
             )}
           </AnimatePresence>
 
-          {step === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              {/* Social sign up */}
-              <div className="social-btn-row" style={{ marginBottom: 16 }}>
-                <button className="social-btn" onClick={() => handleSocialLogin("google")} disabled={!!socialLoading} id="btn-google-signup">
-                  {socialLoading === "google" ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }}/> : <GoogleIcon />}
-                  Google
-                </button>
-                <button className="social-btn" onClick={() => handleSocialLogin("github")} disabled={!!socialLoading} id="btn-github-signup">
-                  {socialLoading === "github" ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }}/> : <GitHubIcon />}
-                  GitHub
-                </button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {/* Social sign up */}
+            <div className="social-btn-row" style={{ marginBottom: 16 }}>
+              <button className="social-btn" onClick={() => handleSocialLogin("google")} disabled={!!socialLoading || loading}>
+                {socialLoading === "google" ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }}/> : <GoogleIcon />}
+                Google
+              </button>
+              <button className="social-btn" onClick={() => handleSocialLogin("github")} disabled={!!socialLoading || loading}>
+                {socialLoading === "github" ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }}/> : <GitHubIcon />}
+                GitHub
+              </button>
+            </div>
+
+            <div className="auth-divider" style={{ marginBottom: 16 }}>
+              <div className="auth-divider-line" />
+              <span>or create with email</span>
+              <div className="auth-divider-line" />
+            </div>
+
+            <form className="auth-form" onSubmit={handleSubmit} noValidate>
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-name">Full name <span className="required">*</span></label>
+                <div style={{ position: "relative" }}>
+                  <User size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
+                  <input id="signup-name" type="text" className="form-input" style={{ paddingLeft: 40 }} placeholder="Alex Johnson" value={form.name} onChange={handleInput("name")} required />
+                </div>
               </div>
 
-              <div className="auth-divider" style={{ marginBottom: 16 }}>
-                <div className="auth-divider-line" />
-                <span>or create with email</span>
-                <div className="auth-divider-line" />
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-email">Email address <span className="required">*</span></label>
+                <div style={{ position: "relative" }}>
+                  <Mail size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
+                  <input id="signup-email" type="email" className="form-input" style={{ paddingLeft: 40 }} placeholder="you@citi.com" value={form.email} onChange={handleInput("email")} required />
+                </div>
               </div>
 
-              <form className="auth-form" onSubmit={handleNext} noValidate>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="signup-name">Full name <span className="required">*</span></label>
-                  <div style={{ position: "relative" }}>
-                    <User size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                    <input id="signup-name" type="text" className="form-input" style={{ paddingLeft: 40 }} placeholder="Alex Johnson" value={form.name} onChange={handleInput("name")} required />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="signup-email">Email address <span className="required">*</span></label>
-                  <div style={{ position: "relative" }}>
-                    <Mail size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                    <input id="signup-email" type="email" className="form-input" style={{ paddingLeft: 40 }} placeholder="you@citibank.com" value={form.email} onChange={handleInput("email")} required />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="signup-password">Password <span className="required">*</span></label>
-                  <div style={{ position: "relative" }}>
-                    <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                    <input id="signup-password" type={showPassword ? "text" : "password"} className="form-input" style={{ paddingLeft: 40, paddingRight: 40 }} placeholder="Min. 6 characters" value={form.password} onChange={handleInput("password")} required />
-                    <button type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }} onClick={() => setShowPassword((v) => !v)} tabIndex={-1}>
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="signup-confirm">Confirm password <span className="required">*</span></label>
-                  <div style={{ position: "relative" }}>
-                    <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-                    <input id="signup-confirm" type={showConfirm ? "text" : "password"} className="form-input" style={{ paddingLeft: 40, paddingRight: 40 }} placeholder="Re-enter password" value={form.confirmPassword} onChange={handleInput("confirmPassword")} required />
-                    <button type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }} onClick={() => setShowConfirm((v) => !v)} tabIndex={-1}>
-                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <button id="btn-signup-next" type="submit" className="btn btn-primary w-full btn-lg" style={{ justifyContent: "center", marginTop: 4 }}>
-                  Continue →
-                </button>
-              </form>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <form onSubmit={handleSubmit}>
-                <div className="role-selector-grid" style={{ marginBottom: 20 }}>
-                  {roleOptions.map((r) => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      className={`role-option${form.role === r.value ? ` selected-${r.color}` : ""}`}
-                      onClick={() => setForm((prev) => ({ ...prev, role: r.value }))}
-                    >
-                      <span className="role-option-name">{r.label}</span>
-                      <span className="role-option-desc">{r.desc}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" className="btn btn-ghost" style={{ flex: 1, justifyContent: "center" }} onClick={() => setStep(1)}>
-                    ← Back
-                  </button>
-                  <button id="btn-signup-submit" type="submit" className="btn btn-primary" style={{ flex: 2, justifyContent: "center" }} disabled={loading}>
-                    {loading ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> : null}
-                    {loading ? "Creating..." : "Create Account"}
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-password">Password <span className="required">*</span></label>
+                <div style={{ position: "relative" }}>
+                  <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
+                  <input id="signup-password" type={showPassword ? "text" : "password"} className="form-input" style={{ paddingLeft: 40, paddingRight: 40 }} placeholder="Min. 6 characters" value={form.password} onChange={handleInput("password")} required />
+                  <button type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }} onClick={() => setShowPassword((v) => !v)} tabIndex={-1}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-              </form>
-            </motion.div>
-          )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-confirm">Confirm password <span className="required">*</span></label>
+                <div style={{ position: "relative" }}>
+                  <Lock size={16} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
+                  <input id="signup-confirm" type={showConfirm ? "text" : "password"} className="form-input" style={{ paddingLeft: 40, paddingRight: 40 }} placeholder="Re-enter password" value={form.confirmPassword} onChange={handleInput("confirmPassword")} required />
+                  <button type="button" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex" }} onClick={() => setShowConfirm((v) => !v)} tabIndex={-1}>
+                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button id="btn-signup-submit" type="submit" className="btn btn-primary w-full btn-lg" style={{ justifyContent: "center", marginTop: 4 }} disabled={loading}>
+                {loading ? <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} /> : null}
+                {loading ? "Creating Account..." : "Create Account"}
+              </button>
+            </form>
+          </motion.div>
 
           <p className="auth-footer-link" style={{ marginTop: 20 }}>
             Already have an account? <Link to="/login">Sign in</Link>
